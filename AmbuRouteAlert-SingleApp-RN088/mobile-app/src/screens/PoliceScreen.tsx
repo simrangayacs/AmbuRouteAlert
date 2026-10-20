@@ -1,0 +1,15 @@
+import React,{useEffect,useState} from 'react';
+import {SafeAreaView,ScrollView,StyleSheet,Text,View} from 'react-native';
+import {Button,Card,colors} from '../components/UI';
+import {api} from '../services/api';
+import {socket} from '../services/socket';
+import type {User} from '../types';
+export default function PoliceScreen({user,onLogout}:{user:User;onLogout:()=>void}){
+ const [alerts,setAlerts]=useState<any[]>([]); const sector=user.sector||'SECTOR-A';
+ const refresh=async()=>{const r=await api.getPoliceAlerts(sector);setAlerts(r.alerts)};
+ useEffect(()=>{refresh();socket.connect();socket.emit('join.sector',sector);const created=()=>refresh();const closed=()=>refresh();socket.on('police.alert.created',created);socket.on('police.alert.closed',closed);return()=>{socket.off('police.alert.created',created);socket.off('police.alert.closed',closed);socket.disconnect()}},[sector]);
+ const action=async(id:number,a:string)=>{await api.policeAction(id,a);refresh();};
+ const active=alerts.find(a=>a.status==='ACTIVE');
+ return <SafeAreaView style={s.root}><ScrollView contentContainerStyle={s.content}><View style={s.header}><View><Text style={s.kicker}>TRAFFIC POLICE HQ</Text><Text style={s.name}>{user.name}</Text><Text style={s.meta}>Assigned: {sector}</Text></View><Text onPress={onLogout} style={s.logout}>Logout</Text></View>{active?<Card><Text style={s.emergency}>EMERGENCY AMBULANCE APPROACHING</Text><Text style={s.big}>{active.junction_name}</Text><Text style={s.meta}>Ambulance: {active.ambulance_no}</Text><Text style={s.meta}>Destination: {active.destination}</Text><Text style={s.meta}>Last action: {active.last_action||'Not acknowledged'}</Text><Button title="ACKNOWLEDGE" variant="blue" onPress={()=>action(active.id,'ACKNOWLEDGE')}/><Button title="CLEAR LANE" variant="green" onPress={()=>action(active.id,'CLEAR_LANE')}/><Button title="STOP TRAFFIC" onPress={()=>action(active.id,'STOP_TRAFFIC')}/></Card>:<Card><Text style={s.normal}>ALL ASSIGNED SECTORS NORMAL</Text><Text style={s.meta}>No incoming emergency ambulance right now.</Text></Card>}<Text style={s.section}>Recent alerts</Text>{alerts.map(a=><Card key={a.id}><Text style={s.item}>{a.junction_name}</Text><Text style={s.meta}>{a.status} · {a.last_action||'No action'}</Text></Card>)}</ScrollView></SafeAreaView>
+}
+const s=StyleSheet.create({root:{flex:1,backgroundColor:colors.bg},content:{padding:16,paddingBottom:40},header:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:18},kicker:{color:colors.blue,fontWeight:'900',fontSize:12},name:{color:colors.text,fontWeight:'800',fontSize:20},meta:{color:colors.muted,lineHeight:22},logout:{color:colors.muted,fontWeight:'700'},emergency:{color:colors.red,fontWeight:'900',fontSize:13},big:{color:colors.text,fontSize:24,fontWeight:'900',marginVertical:10},normal:{color:colors.green,fontWeight:'900',fontSize:18,marginBottom:8},section:{color:colors.text,fontSize:18,fontWeight:'800',marginVertical:10},item:{color:colors.text,fontWeight:'800',fontSize:16}});

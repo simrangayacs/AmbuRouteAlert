@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eu
+GRADLE_VERSION="9.4.1"
+CACHE_DIR="${HOME}/.gradle/amburoute-wrapper-${GRADLE_VERSION}"
+GRADLE_BIN="${CACHE_DIR}/gradle-${GRADLE_VERSION}/bin/gradle"
+if [ ! -x "$GRADLE_BIN" ]; then
+  mkdir -p "$CACHE_DIR"
+  ZIP="$CACHE_DIR/gradle-${GRADLE_VERSION}-bin.zip"
+  URL="https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+  echo "Gradle ${GRADLE_VERSION} is not cached. Downloading official distribution..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL "$URL" -o "$ZIP"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$ZIP" "$URL"
+  else
+    echo "ERROR: curl or wget is required for the first Gradle run." >&2
+    exit 1
+  fi
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q -o "$ZIP" -d "$CACHE_DIR"
+  else
+    echo "ERROR: unzip is required for the first Gradle run." >&2
+    exit 1
+  fi
+fi
+exec "$GRADLE_BIN" "$@"
